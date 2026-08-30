@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Student Dashboard — AI Library</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="navbar-brand">
+      <i class="fas fa-brain"></i>
+      <span>AI Library</span>
+    </div>
+    <div class="navbar-spacer"></div>
+    <div class="navbar-actions">
+      <button class="nav-icon-btn" title="Notifications">
+        <i class="fas fa-bell"></i>
+        <span class="notif-dot"></span>
+      </button>
+      <span class="nav-user-name" id="navUserName">Priyanshu Solanki</span>
+      <div class="nav-avatar" id="navAvatar">PS</div>
+      <button class="nav-icon-btn logout-btn" title="Logout">
+        <i class="fas fa-sign-out-alt"></i>
+      </button>
+    </div>
+  </nav>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="sidebar-section">Main</div>
+    <a href="student-dashboard.html" class="sidebar-link active"><i class="fas fa-home"></i> Home</a>
+    <a href="search.html" class="sidebar-link"><i class="fas fa-search"></i> Search Books</a>
+    <a href="#borrowed" class="sidebar-link"><i class="fas fa-book-open"></i> My Borrowed Books</a>
+    <a href="recommendations.html" class="sidebar-link"><i class="fas fa-star"></i> Recommendations</a>
+    <div class="sidebar-section">Account</div>
+    <a href="fines.html" class="sidebar-link"><i class="fas fa-rupee-sign"></i> My Fines</a>
+    <a href="#profile" class="sidebar-link"><i class="fas fa-user-circle"></i> Profile</a>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="page-wrapper">
+
+    <!-- Welcome Card -->
+    <div class="welcome-card">
+      <div class="welcome-text">
+        <h2>Hello, <span id="welcomeName">Priyanshu</span> 👋</h2>
+        <p>You have <strong id="borrowedCount">3</strong> books borrowed. <span id="overdueAlert" style="color:#FCD34D"></span></p>
+      </div>
+      <i class="fas fa-book-reader welcome-icon"></i>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" id="statsGrid"></div>
+
+    <!-- AI Recommendations -->
+    <div class="card" style="margin-bottom:24px">
+      <div class="section-header">
+        <span class="section-title"><i class="fas fa-robot" style="color:#0EA5E9;margin-right:8px"></i>AI Recommended For You</span>
+        <a href="recommendations.html" class="btn btn-outline btn-sm">View All</a>
+      </div>
+      <div class="rec-scroll" id="recScroll"></div>
+    </div>
+
+    <!-- Recently Borrowed -->
+    <div class="card" id="borrowed">
+      <div class="section-header">
+        <span class="section-title"><i class="fas fa-history" style="color:#0EA5E9;margin-right:8px"></i>Recently Borrowed</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Book Title</th>
+              <th>Author</th>
+              <th>Issue Date</th>
+              <th>Due Date</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody id="borrowedTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- AI Assistant Floating Action Button (FAB) -->
+  <div class="ai-fab-container" id="aiFabContainer">
+    <div class="ai-fab-tooltip">
+      <i class="fas fa-sparkles" style="color:#F59E0B"></i> Ask AI about your books
+    </div>
+    <button class="ai-fab-btn" id="aiFabBtn" title="Library AI Assistant">
+      <i class="fas fa-robot"></i>
+      <div class="ai-fab-badge" id="aiFabBadge"></div>
+    </button>
+  </div>
+
+  <script src="js/mock-data.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/ai-assistant.js"></script>
+  <script>
+    Auth.requireAuth();
+
+    async function initDashboard() {
+      const user = Auth.getUser();
+      if (user) document.getElementById('welcomeName').textContent = user.name.split(' ')[0];
+
+      let stats = { ...MOCK.stats };
+      let borrowedList = [...MOCK.borrowedBooks];
+      let recommendationsList = [...MOCK.recommendations];
+
+      if (user && user.user_id) {
+        // Fetch User Transactions
+        const txnRes = await api.getUserTransactions(user.user_id);
+        if (txnRes && txnRes.success && txnRes.data) {
+          const txns = txnRes.data.transactions;
+          const activeTxns = txns.filter(t => t.status === 'issued' || t.status === 'overdue');
+          stats.borrowed = activeTxns.length;
+
+          if (txns.length > 0) {
+            borrowedList = txns.map(t => ({
+              id: t.book_id,
+              title: t.book ? t.book.title : `Book #${t.book_id}`,
+              author: t.book ? t.book.author : 'Unknown Author',
+              issueDate: t.issue_date,
+              dueDate: t.due_date,
+              status: t.status === 'issued' ? 'Active' : (t.status === 'overdue' ? 'Overdue' : 'Returned')
+            }));
+          }
+        }
+
+        // Fetch User Fines
+        const finesRes = await api.getUserFines(user.user_id);
+        if (finesRes && finesRes.success && finesRes.data) {
+          const unpaid = finesRes.data.fines.filter(f => !f.paid);
+          stats.fines = unpaid.reduce((sum, f) => sum + f.amount, 0);
+        }
+
+        // Fetch AI Recommendations
+        const recRes = await api.getRecommendations(user.user_id);
+        if (recRes && recRes.success && recRes.data && recRes.data.recommendations.length > 0) {
+          recommendationsList = recRes.data.recommendations.map(r => ({
+            id: r.book_id,
+            title: r.title,
+            author: r.author,
+            genre: r.genre,
+            match: r.match_percentage || 85,
+            cover: r.cover_image_url || `assets/images/covers/clean-code.svg`
+          }));
+        }
+      }
+
+      document.getElementById('borrowedCount').textContent = stats.borrowed;
+
+      renderStats(stats);
+      renderRecommendations(recommendationsList);
+      renderBorrowedTable(borrowedList);
+
+      const overdue = borrowedList.filter(b => b.status === 'Overdue');
+      if (overdue.length) {
+        document.getElementById('overdueAlert').textContent = `⚠ ${overdue.length} book(s) overdue!`;
+      } else {
+        document.getElementById('overdueAlert').textContent = '';
+      }
+    }
+
+    function renderStats(s) {
+      const icons = [
+        { label: 'Books Borrowed', value: s.borrowed, icon: 'fa-book-open', cls: 'blue' },
+        { label: 'Books Available', value: s.available.toLocaleString(), icon: 'fa-layer-group', cls: 'green' },
+        { label: 'Pending Fines (₹)', value: s.fines, icon: 'fa-rupee-sign', cls: 'red' },
+        { label: 'Due Date Alerts', value: s.dueSoon, icon: 'fa-bell', cls: 'yellow' },
+      ];
+      document.getElementById('statsGrid').innerHTML = icons.map(i => `
+        <div class="stat-card">
+          <div class="stat-icon ${i.cls}"><i class="fas ${i.icon}"></i></div>
+          <div><div class="stat-value">${i.value}</div><div class="stat-label">${i.label}</div></div>
+        </div>`).join('');
+    }
+
+    function renderRecommendations(list) {
+      document.getElementById('recScroll').innerHTML = list.map(b => `
+        <div class="rec-card">
+          <img src="${b.cover}" alt="${b.title}" loading="lazy" onerror="this.src='assets/images/covers/clean-code.svg'" />
+          <div class="rec-card-body">
+            <div class="rec-card-title">${b.title}</div>
+            <div class="rec-card-author">${b.author}</div>
+            <span class="badge badge-info" style="margin-bottom:8px">${b.genre}</span><br/>
+            <button class="btn btn-primary btn-sm" style="width:100%;margin-top:4px" onclick="borrowBook('${b.id}','${b.title.replace(/'/g, "\\'")}')">
+              <i class="fas fa-plus"></i> Borrow
+            </button>
+          </div>
+        </div>`).join('');
+    }
+
+    function renderBorrowedTable(list) {
+      const statusMap = {
+        Active:   '<span class="badge badge-success">Active</span>',
+        Overdue:  '<span class="badge badge-danger">Overdue</span>',
+        Returned: '<span class="badge badge-muted">Returned</span>',
+      };
+      document.getElementById('borrowedTable').innerHTML = list.map(b => `
+        <tr>
+          <td><strong>${b.title}</strong></td>
+          <td>${b.author}</td>
+          <td>${b.issueDate}</td>
+          <td>${b.dueDate}</td>
+          <td>${statusMap[b.status] || b.status}</td>
+        </tr>`).join('');
+    }
+
+    async function borrowBook(id, title) {
+      const user = Auth.getUser();
+      if (user && user.user_id && typeof id === 'number') {
+        const res = await api.issueBook(user.user_id, id);
+        if (res && res.success) {
+          showToast(`"${title}" issued successfully!`);
+          initDashboard();
+          return;
+        }
+      }
+      showToast(`Borrow request sent for "${title}"!`);
+    }
+
+    initDashboard();
+  </script>
+</body>
+</html>
