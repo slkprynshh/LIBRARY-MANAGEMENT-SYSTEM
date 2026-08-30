@@ -20,7 +20,10 @@ class Config:
             f"mysql+pymysql://{DB_USER}:{DB_PASSWORD}@{DB_HOST}:{DB_PORT}/{DB_NAME}"
         )
     else:
-        sqlite_db_path = os.path.join(BASE_DIR, "library.db")
+        if os.getenv("VERCEL"):
+            sqlite_db_path = "/tmp/library.db"
+        else:
+            sqlite_db_path = os.path.join(BASE_DIR, "library.db")
         SQLALCHEMY_DATABASE_URI = f"sqlite:///{sqlite_db_path}"
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
