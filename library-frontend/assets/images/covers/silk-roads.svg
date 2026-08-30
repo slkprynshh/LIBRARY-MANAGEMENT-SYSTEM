@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="170" viewBox="0 0 120 170">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#451A03"/>
+      <stop offset="100%" stop-color="#F59E0B" stop-opacity="0.3"/>
+    </linearGradient>
+  </defs>
+  <rect width="120" height="170" fill="url(#bg)" rx="6"/>
+  <rect x="6" y="6" width="108" height="158" fill="none" stroke="#F59E0B" stroke-width="1" rx="4" opacity="0.5"/>
+  <rect x="0" y="134" width="120" height="36" fill="#F59E0B" opacity="0.85" rx="0"/>
+  <rect x="0" y="134" width="120" height="36" fill="#F59E0B" opacity="0.85"/>
+  <rect x="0" y="164" width="120" height="6" fill="#F59E0B" rx="0"/>
+  <text x="60" y="62.5" font-family="Georgia,serif" font-size="13" fill="#FDE68A" text-anchor="middle" dominant-baseline="middle">The Silk</text>
+<text x="60" y="79.5" font-family="Georgia,serif" font-size="13" fill="#FDE68A" text-anchor="middle" dominant-baseline="middle">Roads</text>
+  <text x="60" y="152" font-family="Arial,sans-serif" font-size="9" fill="#451A03" text-anchor="middle" dominant-baseline="middle" font-weight="bold">PF</text>
+  <line x1="14" y1="134" x2="106" y2="134" stroke="#FDE68A" stroke-width="0.5" opacity="0.4"/>
+</svg>
