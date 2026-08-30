@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Dashboard — AI Library</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-brand"><i class="fas fa-brain"></i><span>AI Library — Admin</span></div>
+    <div class="navbar-spacer"></div>
+    <div class="navbar-actions">
+      <button class="nav-icon-btn"><i class="fas fa-bell"></i><span class="notif-dot"></span></button>
+      <span class="nav-user-name" id="navUserName"></span>
+      <div class="nav-avatar" id="navAvatar"></div>
+      <button class="nav-icon-btn logout-btn"><i class="fas fa-sign-out-alt"></i></button>
+    </div>
+  </nav>
+
+  <aside class="sidebar">
+    <div class="sidebar-section">Main</div>
+    <a href="admin-dashboard.html" class="sidebar-link active"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+    <a href="manage-books.html" class="sidebar-link"><i class="fas fa-book"></i> Manage Books</a>
+    <a href="#" class="sidebar-link"><i class="fas fa-users"></i> Manage Users</a>
+    <a href="issue-return.html" class="sidebar-link"><i class="fas fa-exchange-alt"></i> Issue / Return</a>
+    <div class="sidebar-section">Reports</div>
+    <a href="#" class="sidebar-link"><i class="fas fa-chart-bar"></i> Reports &amp; Analytics</a>
+    <a href="fines.html" class="sidebar-link"><i class="fas fa-rupee-sign"></i> Fine Management</a>
+    <div class="sidebar-section">System</div>
+    <a href="#" class="sidebar-link"><i class="fas fa-cog"></i> Settings</a>
+  </aside>
+
+  <main class="page-wrapper">
+    <div class="page-header">
+      <div class="page-title">Admin Dashboard</div>
+      <div class="page-subtitle">Overview of library operations</div>
+    </div>
+
+    <!-- Stats -->
+    <div class="stats-grid" id="adminStats"></div>
+
+    <!-- Charts -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-title"><i class="fas fa-chart-bar" style="color:#0EA5E9;margin-right:8px"></i>Monthly Book Issues</div>
+        <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title"><i class="fas fa-chart-pie" style="color:#10B981;margin-right:8px"></i>Books by Category</div>
+        <div class="chart-wrap"><canvas id="pieChart"></canvas></div>
+      </div>
+    </div>
+
+    <!-- Two-column: Transactions + Top Books -->
+    <div style="display:grid;grid-template-columns:1fr 320px;gap:20px">
+      <div class="card">
+        <div class="section-header">
+          <span class="section-title"><i class="fas fa-list" style="color:#0EA5E9;margin-right:8px"></i>Recent Transactions</span>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Student</th><th>Book</th><th>Issue Date</th><th>Due Date</th><th>Status</th><th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="transTable"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="section-title" style="margin-bottom:16px">
+          <i class="fas fa-fire" style="color:#EF4444;margin-right:8px"></i>Top Borrowed Books
+        </div>
+        <div id="topBooks"></div>
+      </div>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/mock-data.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/charts.js"></script>
+  <script>
+    Auth.requireAuth();
+
+    async function initAdminDashboard() {
+      let stats = { ...MOCK.adminStats };
+      let recentTxns = [...MOCK.recentTransactions];
+      let topBooksList = [...MOCK.topBooks];
+
+      const dashRes = await api.getDashboardAnalytics();
+      if (dashRes && dashRes.success && dashRes.data) {
+        const d = dashRes.data;
+        stats = {
+          totalBooks: d.total_books,
+          issued: d.books_issued,
+          available: Math.max(0, d.total_books - d.books_issued),
+          members: d.total_members,
+          overdue: d.overdue_count,
+          finesCollected: d.fines_collected
+        };
+      }
+
+      const txnsRes = await api.getTransactions();
+      if (txnsRes && txnsRes.success && txnsRes.data && txnsRes.data.transactions.length > 0) {
+        recentTxns = txnsRes.data.transactions.slice(0, 8).map(t => ({
+          student: t.user ? t.user.name : `User #${t.user_id}`,
+          book: t.book ? t.book.title : `Book #${t.book_id}`,
+          issueDate: t.issue_date,
+          dueDate: t.due_date,
+          status: t.status === 'issued' ? 'Active' : (t.status === 'overdue' ? 'Overdue' : 'Returned')
+        }));
+      }
+
+      const topRes = await api.getTopBooks();
+      if (topRes && topRes.success && topRes.data && topRes.data.top_books.length > 0) {
+        topBooksList = topRes.data.top_books.map((b, i) => ({
+          rank: i + 1,
+          title: b.title,
+          borrows: b.borrow_count
+        }));
+      }
+
+      renderAdminStats(stats);
+      renderTransactions(recentTxns);
+      renderTopBooks(topBooksList);
+      initAdminCharts();
+    }
+
+    function renderAdminStats(s) {
+      const cards = [
+        { label: 'Total Books', value: s.totalBooks.toLocaleString(), icon: 'fa-book', cls: 'blue' },
+        { label: 'Books Issued', value: s.issued, icon: 'fa-arrow-circle-right', cls: 'yellow' },
+        { label: 'Books Available', value: s.available.toLocaleString(), icon: 'fa-layer-group', cls: 'green' },
+        { label: 'Total Members', value: s.members.toLocaleString(), icon: 'fa-users', cls: 'purple' },
+        { label: 'Overdue Books', value: s.overdue, icon: 'fa-exclamation-circle', cls: 'red' },
+        { label: 'Fines Collected (₹)', value: s.finesCollected.toLocaleString(), icon: 'fa-rupee-sign', cls: 'teal' },
+      ];
+      document.getElementById('adminStats').innerHTML = cards.map(c => `
+        <div class="stat-card">
+          <div class="stat-icon ${c.cls}"><i class="fas ${c.icon}"></i></div>
+          <div><div class="stat-value">${c.value}</div><div class="stat-label">${c.label}</div></div>
+        </div>`).join('');
+    }
+
+    function renderTransactions(list) {
+      const statusMap = {
+        Active:   '<span class="badge badge-success">Active</span>',
+        Overdue:  '<span class="badge badge-danger">Overdue</span>',
+        Returned: '<span class="badge badge-muted">Returned</span>',
+      };
+      document.getElementById('transTable').innerHTML = list.map(t => `
+        <tr>
+          <td>${t.student}</td>
+          <td>${t.book}</td>
+          <td>${t.issueDate}</td>
+          <td>${t.dueDate}</td>
+          <td>${statusMap[t.status] || t.status}</td>
+          <td>
+            <button class="btn btn-outline btn-sm" onclick="showToast('Transaction details for ${t.student.replace(/'/g, "\\'")}')">
+              <i class="fas fa-eye"></i>
+            </button>
+          </td>
+        </tr>`).join('');
+    }
+
+    function renderTopBooks(list) {
+      const rankCls = ['gold', 'silver', 'bronze', '', ''];
+      document.getElementById('topBooks').innerHTML = list.map((b, i) => `
+        <div class="top-book-item">
+          <div class="rank-badge ${rankCls[i] || ''}">${b.rank}</div>
+          <div class="top-book-title">${b.title}</div>
+          <div class="top-book-count">${b.borrows} borrows</div>
+        </div>`).join('');
+    }
+
+    initAdminDashboard();
+  </script>
+</body>
+</html>
