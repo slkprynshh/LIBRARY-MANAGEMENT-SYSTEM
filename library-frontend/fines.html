@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fine Management — AI Library</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-brand"><i class="fas fa-brain"></i><span>AI Library</span></div>
+    <div class="navbar-spacer"></div>
+    <div class="navbar-actions">
+      <button class="nav-icon-btn"><i class="fas fa-bell"></i><span class="notif-dot"></span></button>
+      <span class="nav-user-name" id="navUserName"></span>
+      <div class="nav-avatar" id="navAvatar"></div>
+      <button class="nav-icon-btn logout-btn"><i class="fas fa-sign-out-alt"></i></button>
+    </div>
+  </nav>
+
+  <aside class="sidebar">
+    <div class="sidebar-section">Main</div>
+    <a href="admin-dashboard.html" class="sidebar-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+    <a href="manage-books.html" class="sidebar-link"><i class="fas fa-book"></i> Manage Books</a>
+    <a href="#" class="sidebar-link"><i class="fas fa-users"></i> Manage Users</a>
+    <a href="issue-return.html" class="sidebar-link"><i class="fas fa-exchange-alt"></i> Issue / Return</a>
+    <div class="sidebar-section">Reports</div>
+    <a href="#" class="sidebar-link"><i class="fas fa-chart-bar"></i> Reports &amp; Analytics</a>
+    <a href="fines.html" class="sidebar-link active"><i class="fas fa-rupee-sign"></i> Fine Management</a>
+    <div class="sidebar-section">System</div>
+    <a href="#" class="sidebar-link"><i class="fas fa-cog"></i> Settings</a>
+  </aside>
+
+  <main class="page-wrapper">
+    <div class="page-header">
+      <div class="page-title">Fine Management</div>
+      <div class="page-subtitle">Track and manage overdue fines — ₹2 per day</div>
+    </div>
+
+    <!-- Summary Cards -->
+    <div class="fines-summary" id="finesSummary"></div>
+
+    <!-- Table -->
+    <div class="card">
+      <div class="section-header">
+        <span class="section-title"><i class="fas fa-list" style="color:#0EA5E9;margin-right:8px" aria-hidden="true"></i>Fine Records Ledger</span>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:13px;color:#64748B">Rate: ₹2 / day overdue</span>
+          <button class="btn btn-success btn-sm" id="bulkPayFinesBtn" onclick="bulkClearFines()" title="Clear all unpaid fines" aria-label="Clear All Unpaid Fines" style="display:none">
+            <i class="fas fa-check-double"></i> Bulk Clear All Fines
+          </button>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Student Name</th><th>Book Title</th><th>Days Overdue</th>
+              <th>Fine Amount</th><th>Status</th><th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="finesTable"></tbody>
+        </table>
+      </div>
+    </div>
+  <div class="toast" id="toast"></div>
+
+  <!-- AI Assistant Floating Action Button (FAB) -->
+  <div class="ai-fab-container" id="aiFabContainer">
+    <div class="ai-fab-tooltip">
+      <i class="fas fa-sparkles" style="color:#F59E0B"></i> Ask AI about your books
+    </div>
+    <button class="ai-fab-btn" id="aiFabBtn" title="Library AI Assistant" aria-label="Library AI Assistant">
+      <i class="fas fa-robot"></i>
+      <div class="ai-fab-badge" id="aiFabBadge"></div>
+    </button>
+  </div>
+
+  <script src="js/mock-data.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/ai-assistant.js"></script>
+  <script>
+    Auth.requireAuth();
+
+    let finesList = [];
+
+    async function loadFinesData() {
+      const user = Auth.getUser();
+      let res;
+      if (user && user.role === 'student' && user.user_id) {
+        res = await api.getUserFines(user.user_id);
+      } else {
+        res = await api.getFines();
+      }
+
+      if (res && res.success && res.data && res.data.fines.length > 0) {
+        finesList = res.data.fines.map(f => ({
+          _id: f.fine_id,
+          student: f.user ? f.user.name : (f.user_id ? `Student #${f.user_id}` : 'Student'),
+          book: f.transaction && f.transaction.book ? f.transaction.book.title : 'Library Book',
+          daysOverdue: Math.max(1, Math.round(f.amount / 2)),
+          amount: f.amount,
+          status: f.paid ? 'Paid' : 'Unpaid'
+        }));
+      } else {
+        finesList = MOCK.fines.map((f, i) => ({ ...f, _id: i + 100 }));
+      }
+
+      renderSummary();
+      renderTable();
+    }
+
+    function renderSummary() {
+      const unpaid = finesList.filter(f => f.status === 'Unpaid');
+      const paid   = finesList.filter(f => f.status === 'Paid');
+      const totalDue = unpaid.reduce((s, f) => s + f.amount, 0);
+      const totalCollected = paid.reduce((s, f) => s + f.amount, 0);
+
+      const bulkBtn = document.getElementById('bulkPayFinesBtn');
+      if (bulkBtn) bulkBtn.style.display = unpaid.length > 0 ? 'inline-flex' : 'none';
+
+      const cards = [
+        { label: 'Total Fines Due', value: `₹${totalDue}`, icon: 'fa-exclamation-circle', cls: 'red' },
+        { label: 'Total Collected', value: `₹${totalCollected}`, icon: 'fa-check-circle', cls: 'green' },
+        { label: 'Overdue Count', value: unpaid.length, icon: 'fa-clock', cls: 'yellow' },
+      ];
+      document.getElementById('finesSummary').innerHTML = cards.map(c => `
+        <div class="stat-card">
+          <div class="stat-icon ${c.cls}"><i class="fas ${c.icon}"></i></div>
+          <div><div class="stat-value">${c.value}</div><div class="stat-label">${c.label}</div></div>
+        </div>`).join('');
+    }
+
+    function renderTable() {
+      document.getElementById('finesTable').innerHTML = finesList.map(f => `
+        <tr>
+          <td><strong>${f.student}</strong></td>
+          <td>${f.book}</td>
+          <td><span class="badge badge-danger">${f.daysOverdue} days</span></td>
+          <td><strong>₹${f.amount}</strong></td>
+          <td>
+            <span class="badge ${f.status === 'Paid' ? 'badge-success' : 'badge-warning'}">
+              ${f.status}
+            </span>
+          </td>
+          <td>
+            ${f.status === 'Unpaid'
+              ? `<button class="btn btn-success btn-sm fine-pay-btn" id="payBtn_${f._id}" onclick="confirmPayFine(${f._id}, '${f.student.replace(/'/g, "\\'")}', ${f.amount})" title="Mark fine as paid" aria-label="Pay fine for ${f.student}"><i class="fas fa-check-circle"></i> Pay Fine (₹${f.amount})</button>`
+              : `<span style="color:#10B981;font-size:13px;font-weight:600"><i class="fas fa-check-circle"></i> Cleared</span>`
+            }
+          </td>
+        </tr>`).join('');
+    }
+
+    function confirmPayFine(id, student, amount) {
+      showConfirmModal({
+        title: 'Confirm Fine Settlement',
+        message: `Are you sure you want to mark the fine of <strong>₹${amount}</strong> for student <strong>${student}</strong> as paid?`,
+        confirmText: `Pay ₹${amount}`,
+        confirmClass: 'btn-success',
+        icon: 'fa-check-circle',
+        onConfirm: async () => {
+          const btn = document.getElementById(`payBtn_${id}`);
+          if (btn) ButtonState.setLoading(btn, true, 'Settling...');
+          try {
+            if (typeof id === 'number' && id < 100) {
+              await api.payFine(id);
+            }
+            finesList = finesList.map(f => f._id === id ? { ...f, status: 'Paid' } : f);
+            renderSummary();
+            renderTable();
+            showToast(`Fine of ₹${amount} for ${student} marked as paid!`, 'success');
+          } catch (err) {
+            showToast(err.message || 'Payment processing failed.', 'error');
+          }
+        }
+      });
+    }
+
+    function bulkClearFines() {
+      const unpaid = finesList.filter(f => f.status === 'Unpaid');
+      const totalAmount = unpaid.reduce((s, f) => s + f.amount, 0);
+      showConfirmModal({
+        title: 'Bulk Clear All Fines',
+        message: `Are you sure you want to mark all <strong>${unpaid.length} unpaid fine(s)</strong> (totaling ₹${totalAmount}) as cleared?`,
+        confirmText: `Clear ₹${totalAmount} Fines`,
+        confirmClass: 'btn-success',
+        icon: 'fa-check-double',
+        onConfirm: async () => {
+          for (const f of unpaid) {
+            if (typeof f._id === 'number' && f._id < 100) await api.payFine(f._id);
+          }
+          finesList = finesList.map(f => ({ ...f, status: 'Paid' }));
+          renderSummary();
+          renderTable();
+          showToast(`All ${unpaid.length} fine(s) cleared successfully!`, 'success');
+        }
+      });
+    }
+
+    loadFinesData();
+  </script>
+</body>
+</html>
