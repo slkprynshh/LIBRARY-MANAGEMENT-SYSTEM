@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Manage Books — AI Library</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-brand"><i class="fas fa-brain"></i><span>AI Library — Admin</span></div>
+    <div class="navbar-spacer"></div>
+    <div class="navbar-actions">
+      <button class="nav-icon-btn"><i class="fas fa-bell"></i><span class="notif-dot"></span></button>
+      <span class="nav-user-name" id="navUserName"></span>
+      <div class="nav-avatar" id="navAvatar"></div>
+      <button class="nav-icon-btn logout-btn"><i class="fas fa-sign-out-alt"></i></button>
+    </div>
+  </nav>
+
+  <aside class="sidebar">
+    <div class="sidebar-section">Main</div>
+    <a href="admin-dashboard.html" class="sidebar-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+    <a href="manage-books.html" class="sidebar-link active"><i class="fas fa-book"></i> Manage Books</a>
+    <a href="#" class="sidebar-link"><i class="fas fa-users"></i> Manage Users</a>
+    <a href="issue-return.html" class="sidebar-link"><i class="fas fa-exchange-alt"></i> Issue / Return</a>
+    <div class="sidebar-section">Reports</div>
+    <a href="#" class="sidebar-link"><i class="fas fa-chart-bar"></i> Reports &amp; Analytics</a>
+    <a href="fines.html" class="sidebar-link"><i class="fas fa-rupee-sign"></i> Fine Management</a>
+    <div class="sidebar-section">System</div>
+    <a href="#" class="sidebar-link"><i class="fas fa-cog"></i> Settings</a>
+  </aside>
+
+  <main class="page-wrapper">
+    <div class="page-header">
+      <div class="page-title">Manage Books</div>
+      <div class="page-subtitle">Add, edit, or remove books from the library catalog</div>
+    </div>
+
+    <div class="manage-toolbar">
+      <div style="position:relative;flex:1;max-width:320px">
+        <i class="fas fa-search" style="position:absolute;left:12px;top:50%;transform:translateY(-50%);color:#64748B" aria-hidden="true"></i>
+        <input type="text" id="bookSearch" class="search-input" placeholder="Search by title, author, or ISBN..." style="padding:9px 14px 9px 38px;font-size:14px" aria-label="Search catalog books" />
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-danger" id="bulkDeleteBtn" onclick="bulkDeleteBooks()" title="Delete all selected books" aria-label="Bulk delete selected books" style="display:none">
+          <i class="fas fa-trash-alt"></i> Delete Selected (<span id="selectedCount">0</span>)
+        </button>
+        <button class="btn btn-primary" onclick="openModal()" title="Add a new book to catalog" aria-label="Add New Book">
+          <i class="fas fa-plus-circle"></i> Add New Book
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:36px"><input type="checkbox" id="selectAllBooks" onchange="toggleSelectAll(this)" aria-label="Select all books" /></th>
+              <th>Book ID</th><th>Cover</th><th>Title</th><th>Author</th>
+              <th>Genre</th><th>Total</th><th>Available</th><th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="booksTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+
+  <!-- Add/Edit Modal -->
+  <div class="modal-overlay" id="bookModal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="modalTitle">Add New Book</span>
+        <button class="modal-close" onclick="closeModal()" aria-label="Close modal">&times;</button>
+      </div>
+      <form id="bookForm">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Title *</label>
+            <input type="text" id="fTitle" class="form-control" placeholder="Book title" required />
+          </div>
+          <div class="form-group">
+            <label>Author *</label>
+            <input type="text" id="fAuthor" class="form-control" placeholder="Author name" required />
+          </div>
+          <div class="form-group">
+            <label>ISBN</label>
+            <input type="text" id="fIsbn" class="form-control" placeholder="978-XXXXXXXXXX" />
+          </div>
+          <div class="form-group">
+            <label>Genre</label>
+            <select id="fGenre" class="form-control">
+              <option>Technology</option><option>Fiction</option><option>Science</option>
+              <option>History</option><option>Self-Help</option><option>Other</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Publisher</label>
+            <input type="text" id="fPublisher" class="form-control" placeholder="Publisher name" />
+          </div>
+          <div class="form-group">
+            <label>Year</label>
+            <input type="number" id="fYear" class="form-control" placeholder="2024" min="1900" max="2099" />
+          </div>
+          <div class="form-group">
+            <label>Total Copies</label>
+            <input type="number" id="fCopies" class="form-control" placeholder="1" min="1" />
+          </div>
+          <div class="form-group">
+            <label>Cover Image URL</label>
+            <input type="url" id="fCover" class="form-control" placeholder="https://..." />
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" onclick="closeModal()">Cancel</button>
+          <button type="submit" class="btn btn-primary" id="saveBookBtn"><i class="fas fa-save"></i> Save Book Details</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/mock-data.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    Auth.requireAuth();
+    let books = [];
+    let editId = null;
+
+    async function loadBooks() {
+      const res = await api.getBooks({ per_page: 100 });
+      if (res && res.success && res.data) {
+        books = res.data.books.map(b => ({
+          id: b.book_id,
+          title: b.title,
+          author: b.author,
+          genre: b.genre || 'General',
+          isbn: b.isbn || '',
+          total: b.total_copies || 1,
+          available: b.available_copies !== undefined ? b.available_copies : 1,
+          cover: b.cover_image_url || `assets/images/covers/clean-code.svg`
+        }));
+      } else {
+        books = [...MOCK.manageBooks];
+      }
+      renderTable();
+    }
+
+    function renderTable(data = books) {
+      document.getElementById('booksTable').innerHTML = data.map(b => `
+        <tr>
+          <td><input type="checkbox" class="book-cb" value="${b.id}" onchange="updateSelection()" aria-label="Select book ${b.title}" /></td>
+          <td><code style="font-size:12px;color:#0EA5E9">${typeof b.id === 'number' ? 'LIB' + String(b.id).padStart(3, '0') : b.id}</code></td>
+          <td><img src="${b.cover}" alt="Book cover for ${b.title}" style="width:36px;height:48px;object-fit:cover;border-radius:4px" onerror="this.src='assets/images/covers/clean-code.svg'" /></td>
+          <td><strong>${b.title}</strong></td>
+          <td>${b.author || 'Author information not available for this book'}</td>
+          <td><span class="badge badge-info">${b.genre}</span></td>
+          <td>${b.total}</td>
+          <td>
+            <span class="badge ${b.available > 0 ? 'badge-success' : 'badge-danger'}">${b.available}</span>
+          </td>
+          <td style="display:flex;gap:6px">
+            <button class="btn btn-outline btn-sm" onclick="editBook('${b.id}')" title="Edit book details" aria-label="Edit book ${b.title}"><i class="fas fa-edit"></i> Edit</button>
+            <button class="btn btn-danger btn-sm" onclick="confirmDeleteBook('${b.id}', '${b.title.replace(/'/g, "\\'")}')" title="Delete book" aria-label="Delete book ${b.title}"><i class="fas fa-trash-alt"></i> Delete</button>
+          </td>
+        </tr>`).join('');
+      updateSelection();
+    }
+
+    function toggleSelectAll(masterCb) {
+      document.querySelectorAll('.book-cb').forEach(cb => cb.checked = masterCb.checked);
+      updateSelection();
+    }
+
+    function updateSelection() {
+      const selected = Array.from(document.querySelectorAll('.book-cb:checked'));
+      const bulkBtn = document.getElementById('bulkDeleteBtn');
+      const countEl = document.getElementById('selectedCount');
+      if (selected.length > 0) {
+        bulkBtn.style.display = 'inline-flex';
+        countEl.textContent = selected.length;
+      } else {
+        bulkBtn.style.display = 'none';
+      }
+    }
+
+    function bulkDeleteBooks() {
+      const selected = Array.from(document.querySelectorAll('.book-cb:checked')).map(cb => cb.value);
+      if (selected.length === 0) return;
+      showConfirmModal({
+        title: 'Bulk Delete Books',
+        message: `Are you sure you want to permanently delete <strong>${selected.length} selected book(s)</strong> from the library catalog?`,
+        confirmText: `Delete ${selected.length} Books`,
+        confirmClass: 'btn-danger',
+        onConfirm: async () => {
+          for (const id of selected) {
+            if (!isNaN(id)) await api.deleteBook(id);
+          }
+          books = books.filter(b => !selected.includes(String(b.id)));
+          renderTable();
+          showToast(`${selected.length} book(s) deleted from catalog!`, 'success');
+        }
+      });
+    }
+
+    function openModal(id = null) {
+      editId = id;
+      document.getElementById('modalTitle').textContent = id ? 'Edit Book Details' : 'Add New Book';
+      if (id) {
+        const b = books.find(x => String(x.id) === String(id));
+        if (b) {
+          document.getElementById('fTitle').value = b.title;
+          document.getElementById('fAuthor').value = b.author;
+          document.getElementById('fIsbn').value = b.isbn || '';
+          document.getElementById('fGenre').value = b.genre;
+          document.getElementById('fCopies').value = b.total;
+          document.getElementById('fCover').value = b.cover || '';
+        }
+      } else {
+        document.getElementById('bookForm').reset();
+      }
+      document.getElementById('bookModal').classList.add('open');
+    }
+
+    function closeModal() { document.getElementById('bookModal').classList.remove('open'); }
+    function editBook(id) { openModal(id); }
+
+    function confirmDeleteBook(id, title) {
+      showConfirmModal({
+        title: 'Delete Book Confirmation',
+        message: `Are you sure you want to remove <strong>"${title}"</strong> from the library catalog? This action cannot be undone.`,
+        confirmText: 'Delete Book',
+        confirmClass: 'btn-danger',
+        onConfirm: async () => {
+          if (!isNaN(id)) {
+            const res = await api.deleteBook(id);
+            if (res && res.success) {
+              showToast(`"${title}" deleted from catalog.`, 'success');
+              loadBooks();
+              return;
+            }
+          }
+          books = books.filter(b => String(b.id) !== String(id));
+          renderTable();
+          showToast(`"${title}" deleted from catalog.`, 'success');
+        }
+      });
+    }
+
+    document.getElementById('bookForm').addEventListener('submit', async e => {
+      e.preventDefault();
+      const saveBtn = document.getElementById('saveBookBtn');
+      ButtonState.setLoading(saveBtn, true, 'Saving Book...');
+
+      const payload = {
+        title: document.getElementById('fTitle').value,
+        author: document.getElementById('fAuthor').value,
+        isbn: document.getElementById('fIsbn').value,
+        genre: document.getElementById('fGenre').value,
+        total_copies: parseInt(document.getElementById('fCopies').value) || 1,
+        cover_image_url: document.getElementById('fCover').value || ''
+      };
+
+      try {
+        if (editId && (!isNaN(editId))) {
+          const res = await api.updateBook(editId, payload);
+          if (res && res.success) {
+            showToast(`"${payload.title}" updated successfully!`);
+            closeModal();
+            loadBooks();
+            return;
+          }
+        } else if (!editId) {
+          const res = await api.addBook(payload);
+          if (res && res.success) {
+            showToast(`"${payload.title}" added to catalog!`);
+            closeModal();
+            loadBooks();
+            return;
+          }
+        }
+      } catch (err) {
+        showToast(err.message || 'Error saving book.', 'error');
+      } finally {
+        ButtonState.setLoading(saveBtn, false);
+      }
+
+      showToast(`Book saved: "${payload.title}"`);
+      closeModal();
+      loadBooks();
+    });
+
+    document.getElementById('bookSearch').addEventListener('input', e => {
+      const q = e.target.value.toLowerCase();
+      renderTable(books.filter(b =>
+        b.title.toLowerCase().includes(q) || b.author.toLowerCase().includes(q) || b.genre.toLowerCase().includes(q)
+      ));
+    });
+
+    document.getElementById('bookModal').addEventListener('click', e => {
+      if (e.target === document.getElementById('bookModal')) closeModal();
+    });
+
+    loadBooks();
+  </script>
+</body>
+</html>
