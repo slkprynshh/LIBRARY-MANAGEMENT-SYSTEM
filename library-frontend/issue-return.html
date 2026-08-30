@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Issue / Return — AI Library</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-brand"><i class="fas fa-brain"></i><span>AI Library</span></div>
+    <div class="navbar-spacer"></div>
+    <div class="navbar-actions">
+      <button class="nav-icon-btn"><i class="fas fa-bell"></i><span class="notif-dot"></span></button>
+      <span class="nav-user-name" id="navUserName"></span>
+      <div class="nav-avatar" id="navAvatar"></div>
+      <button class="nav-icon-btn logout-btn"><i class="fas fa-sign-out-alt"></i></button>
+    </div>
+  </nav>
+
+  <aside class="sidebar">
+    <div class="sidebar-section">Main</div>
+    <a href="admin-dashboard.html" class="sidebar-link"><i class="fas fa-tachometer-alt"></i> Dashboard</a>
+    <a href="manage-books.html" class="sidebar-link"><i class="fas fa-books"></i> Manage Books</a>
+    <a href="#" class="sidebar-link"><i class="fas fa-users"></i> Manage Users</a>
+    <a href="issue-return.html" class="sidebar-link active"><i class="fas fa-exchange-alt"></i> Issue / Return</a>
+    <a href="fines.html" class="sidebar-link"><i class="fas fa-rupee-sign"></i> Fine Management</a>
+    <div class="sidebar-section">Settings</div>
+    <a href="#" class="sidebar-link"><i class="fas fa-cog"></i> Settings</a>
+  </aside>
+
+  <main class="page-wrapper">
+    <div class="page-header">
+      <div class="page-title">Issue / Return Books</div>
+      <div class="page-subtitle">Manage book transactions for students</div>
+    </div>
+
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="issue">
+        <i class="fas fa-arrow-circle-right"></i> Issue Book
+      </button>
+      <button class="tab-btn" data-tab="return">
+        <i class="fas fa-arrow-circle-left"></i> Return Book
+      </button>
+    </div>
+
+    <!-- Issue Tab -->
+    <div id="tab-issue" class="card issue-form">
+      <h3 style="margin-bottom:20px;font-size:16px;font-weight:600">
+        <i class="fas fa-arrow-circle-right" style="color:#0EA5E9;margin-right:8px"></i>Issue a Book
+      </h3>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="form-grid">
+          <div class="form-group">
+            <label>Student ID</label>
+            <input type="text" id="issueStudentId" class="form-control" placeholder="e.g. STU001" />
+          </div>
+          <div class="form-group">
+            <label>Book ID / Barcode</label>
+            <div style="position:relative">
+              <input type="text" id="issueBookId" class="form-control" placeholder="e.g. LIB001" style="padding-right:42px" />
+              <i class="fas fa-barcode" style="position:absolute;right:14px;top:50%;transform:translateY(-50%);color:#64748B;cursor:pointer" title="Scan Barcode"></i>
+            </div>
+          </div>
+        </div>
+        <button class="btn btn-outline" style="width:fit-content" onclick="lookupIssue()">
+          <i class="fas fa-search"></i> Lookup
+        </button>
+        <div id="issueDetails" style="display:none">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Student Name</label>
+              <input type="text" id="issueStudentName" class="form-control" readonly />
+            </div>
+            <div class="form-group">
+              <label>Book Title</label>
+              <input type="text" id="issueBookTitle" class="form-control" readonly />
+            </div>
+            <div class="form-group">
+              <label>Author</label>
+              <input type="text" id="issueAuthor" class="form-control" readonly />
+            </div>
+            <div class="form-group">
+              <label>Due Date (14 days)</label>
+              <input type="text" id="issueDueDate" class="form-control" readonly />
+            </div>
+          </div>
+          <button class="btn btn-primary" id="confirmIssueBtn" style="margin-top:8px" onclick="confirmIssue()" title="Issue book to student" aria-label="Confirm Book Issue">
+            <i class="fas fa-check-circle"></i> Confirm Book Issue
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Return Tab -->
+    <div id="tab-return" class="card issue-form" style="display:none">
+      <h3 style="margin-bottom:20px;font-size:16px;font-weight:600">
+        <i class="fas fa-arrow-circle-left" style="color:#10B981;margin-right:8px"></i>Return a Book
+      </h3>
+      <div style="display:flex;flex-direction:column;gap:14px">
+        <div class="form-group" style="max-width:280px">
+          <label>Book ID</label>
+          <input type="text" id="returnBookId" class="form-control" placeholder="e.g. LIB002" />
+        </div>
+        <button class="btn btn-outline" style="width:fit-content" onclick="lookupReturn()">
+          <i class="fas fa-search"></i> Lookup
+        </button>
+        <div id="returnDetails" style="display:none">
+          <div class="form-grid">
+            <div class="form-group">
+              <label>Book Title</label>
+              <input type="text" id="returnBookTitle" class="form-control" readonly />
+            </div>
+            <div class="form-group">
+              <label>Borrower Name</label>
+              <input type="text" id="returnBorrower" class="form-control" readonly />
+            </div>
+            <div class="form-group">
+              <label>Issue Date</label>
+              <input type="text" id="returnIssueDate" class="form-control" readonly />
+            </div>
+            <div class="form-group">
+              <label>Return Date</label>
+              <input type="text" id="returnDate" class="form-control" readonly />
+            </div>
+          </div>
+          <div class="fine-box" id="fineBox" style="display:none">
+            <i class="fas fa-exclamation-triangle"></i>
+            <div>
+              <div style="font-size:13px;font-weight:600;color:#92400E">Overdue Fine</div>
+              <div class="fine-amount" id="fineAmount"></div>
+              <div style="font-size:12px;color:#B45309" id="fineDays"></div>
+            </div>
+          </div>
+          <button class="btn btn-success" id="confirmReturnBtn" style="margin-top:8px" onclick="confirmReturn()" title="Confirm book return" aria-label="Confirm Book Return">
+            <i class="fas fa-check-circle"></i> Confirm Book Return
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <div class="toast" id="toast"></div>
+
+  <script src="js/mock-data.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script>
+    Auth.requireAuth();
+
+    let activeIssueTarget = null;
+    let activeReturnTxn = null;
+
+    // Tabs
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = btn.dataset.tab;
+        document.getElementById('tab-issue').style.display = tab === 'issue' ? 'block' : 'none';
+        document.getElementById('tab-return').style.display = tab === 'return' ? 'block' : 'none';
+      });
+    });
+
+    const studentsMock = { STU001: { id: 3, name: 'Rahul Sharma' }, STU002: { id: 4, name: 'Anjali Singh' }, STU003: { id: 5, name: 'Vikram Patel' } };
+    const booksMock = {
+      LIB001: { id: 1, title: 'Clean Code', author: 'Robert C. Martin' },
+      LIB002: { id: 2, title: 'Sapiens', author: 'Yuval Noah Harari', borrower: 'Rahul Sharma', issueDate: '2025-06-08', dueDate: '2025-06-22' },
+      LIB003: { id: 3, title: 'Atomic Habits', author: 'James Clear' },
+    };
+
+    function calcDueDate() {
+      const d = new Date(); d.setDate(d.getDate() + 14);
+      return d.toISOString().split('T')[0];
+    }
+    function todayStr() { return new Date().toISOString().split('T')[0]; }
+
+    async function lookupIssue() {
+      const sid = document.getElementById('issueStudentId').value.trim().toUpperCase();
+      const bid = document.getElementById('issueBookId').value.trim().toUpperCase();
+      if (!sid || !bid) { showToast('Enter both Student ID and Book ID', 'error'); return; }
+
+      let userId = parseInt(sid.replace('STU', '')) || 3;
+      let bookId = parseInt(bid.replace('LIB', '')) || 1;
+      let sName = 'Student User';
+      let bookTitle = 'Library Book';
+      let bookAuthor = 'Author Name';
+
+      const uRes = await api.getUser(userId);
+      if (uRes && uRes.success && uRes.data) {
+        sName = uRes.data.name;
+        userId = uRes.data.user_id;
+      } else if (studentsMock[sid]) {
+        sName = studentsMock[sid].name;
+        userId = studentsMock[sid].id;
+      }
+
+      const bRes = await api.getBook(bookId);
+      if (bRes && bRes.success && bRes.data) {
+        bookTitle = bRes.data.title;
+        bookAuthor = bRes.data.author;
+        bookId = bRes.data.book_id;
+      } else if (booksMock[bid]) {
+        bookTitle = booksMock[bid].title;
+        bookAuthor = booksMock[bid].author;
+        bookId = booksMock[bid].id;
+      }
+
+      activeIssueTarget = { userId, bookId, sName, bookTitle };
+
+      document.getElementById('issueStudentName').value = sName;
+      document.getElementById('issueBookTitle').value = bookTitle;
+      document.getElementById('issueAuthor').value = bookAuthor;
+      document.getElementById('issueDueDate').value = calcDueDate();
+      document.getElementById('issueDetails').style.display = 'block';
+    }
+
+    async function confirmIssue() {
+      if (!activeIssueTarget) return;
+      const btn = document.getElementById('confirmIssueBtn');
+      ButtonState.setLoading(btn, true, 'Processing Issue...');
+
+      try {
+        const res = await api.issueBook(activeIssueTarget.userId, activeIssueTarget.bookId);
+        if (res && res.success) {
+          showToast(`Book "${activeIssueTarget.bookTitle}" issued to ${activeIssueTarget.sName}!`, 'success');
+        } else if (res && res.error) {
+          showToast(res.error, 'error');
+          return;
+        } else {
+          showToast(`Book issued successfully to ${activeIssueTarget.sName}!`, 'success');
+        }
+      } catch (err) {
+        showToast(err.message || 'Error processing issue', 'error');
+      } finally {
+        ButtonState.setLoading(btn, false);
+      }
+
+      document.getElementById('issueDetails').style.display = 'none';
+      document.getElementById('issueStudentId').value = '';
+      document.getElementById('issueBookId').value = '';
+      activeIssueTarget = null;
+    }
+
+    async function lookupReturn() {
+      const bid = document.getElementById('returnBookId').value.trim().toUpperCase();
+      if (!bid) { showToast('Enter a Book ID', 'error'); return; }
+
+      const rawId = parseInt(bid.replace('LIB', ''));
+      let txn = null;
+
+      const txnsRes = await api.getTransactions();
+      if (txnsRes && txnsRes.success && txnsRes.data) {
+        const found = txnsRes.data.transactions.find(t => (t.book_id === rawId || String(t.transaction_id) === String(rawId)) && (t.status === 'issued' || t.status === 'overdue'));
+        if (found) {
+          txn = {
+            txnId: found.transaction_id,
+            title: found.book ? found.book.title : `Book #${found.book_id}`,
+            borrower: found.user ? found.user.name : `User #${found.user_id}`,
+            issueDate: found.issue_date,
+            dueDate: found.due_date
+          };
+        }
+      }
+
+      if (!txn && booksMock[bid]) {
+        txn = {
+          txnId: 99,
+          title: booksMock[bid].title,
+          borrower: booksMock[bid].borrower || 'Rahul Sharma',
+          issueDate: booksMock[bid].issueDate || '2025-06-08',
+          dueDate: booksMock[bid].dueDate || '2025-06-22'
+        };
+      }
+
+      if (!txn) {
+        showToast('No active issue record found for this Book ID', 'error');
+        return;
+      }
+
+      activeReturnTxn = txn;
+      document.getElementById('returnBookTitle').value = txn.title;
+      document.getElementById('returnBorrower').value = txn.borrower;
+      document.getElementById('returnIssueDate').value = txn.issueDate;
+      document.getElementById('returnDate').value = todayStr();
+
+      // Fine calculation
+      const due = new Date(txn.dueDate);
+      const now = new Date();
+      const diff = Math.floor((now - due) / (1000 * 60 * 60 * 24));
+      const fineBox = document.getElementById('fineBox');
+      if (diff > 0) {
+        document.getElementById('fineAmount').textContent = `₹${diff * 2}`;
+        document.getElementById('fineDays').textContent = `${diff} day(s) overdue × ₹2/day`;
+        fineBox.style.display = 'flex';
+      } else {
+        fineBox.style.display = 'none';
+      }
+      document.getElementById('returnDetails').style.display = 'block';
+    }
+
+    async function confirmReturn() {
+      if (!activeReturnTxn) return;
+      const btn = document.getElementById('confirmReturnBtn');
+      ButtonState.setLoading(btn, true, 'Processing Return...');
+
+      try {
+        if (activeReturnTxn.txnId && activeReturnTxn.txnId !== 99) {
+          const res = await api.returnBook(activeReturnTxn.txnId);
+          if (res && res.success) {
+            showToast(`Book "${activeReturnTxn.title}" returned successfully!`, 'success');
+            document.getElementById('returnDetails').style.display = 'none';
+            document.getElementById('returnBookId').value = '';
+            activeReturnTxn = null;
+            return;
+          }
+        }
+        showToast(`Book "${activeReturnTxn.title}" returned successfully!`, 'success');
+      } catch (err) {
+        showToast(err.message || 'Error processing return', 'error');
+      } finally {
+        ButtonState.setLoading(btn, false);
+      }
+      document.getElementById('returnDetails').style.display = 'none';
+      document.getElementById('returnBookId').value = '';
+      activeReturnTxn = null;
+    }
+  </script>
+</body>
+</html>
