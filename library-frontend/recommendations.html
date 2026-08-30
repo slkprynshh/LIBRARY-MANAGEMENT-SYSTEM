@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Recommendations — AI Library</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-brand"><i class="fas fa-brain"></i><span>AI Library</span></div>
+    <div class="navbar-spacer"></div>
+    <div class="navbar-actions">
+      <button class="nav-icon-btn"><i class="fas fa-bell"></i><span class="notif-dot"></span></button>
+      <span class="nav-user-name" id="navUserName"></span>
+      <div class="nav-avatar" id="navAvatar"></div>
+      <button class="nav-icon-btn logout-btn"><i class="fas fa-sign-out-alt"></i></button>
+    </div>
+  </nav>
+
+  <aside class="sidebar">
+    <div class="sidebar-section">Main</div>
+    <a href="student-dashboard.html" class="sidebar-link"><i class="fas fa-home"></i> Home</a>
+    <a href="search.html" class="sidebar-link"><i class="fas fa-search"></i> Search Books</a>
+    <a href="student-dashboard.html#borrowed" class="sidebar-link"><i class="fas fa-book-open"></i> My Borrowed Books</a>
+    <a href="recommendations.html" class="sidebar-link active"><i class="fas fa-star"></i> Recommendations</a>
+    <div class="sidebar-section">Account</div>
+    <a href="fines.html" class="sidebar-link"><i class="fas fa-rupee-sign"></i> My Fines</a>
+    <a href="#" class="sidebar-link"><i class="fas fa-user-circle"></i> Profile</a>
+  </aside>
+
+  <main class="page-wrapper">
+
+    <!-- Hero Banner -->
+    <div class="welcome-card" style="margin-bottom:28px">
+      <div class="welcome-text">
+        <h2><i class="fas fa-robot" style="margin-right:8px"></i>AI Recommendations</h2>
+        <p>Personalized picks based on your reading history and preferences</p>
+      </div>
+      <i class="fas fa-magic welcome-icon"></i>
+    </div>
+
+    <!-- Recommended For You -->
+    <div class="section-header" style="margin-bottom:16px">
+      <span class="section-title"><i class="fas fa-star" style="color:#F59E0B;margin-right:8px"></i>Recommended Just For You</span>
+      <span style="font-size:13px;color:#64748B">Based on your reading history</span>
+    </div>
+    <div class="rec-grid" id="recGrid" style="margin-bottom:32px"></div>
+
+    <!-- Trending -->
+    <div class="section-header" style="margin-bottom:16px">
+      <span class="section-title"><i class="fas fa-fire" style="color:#EF4444;margin-right:8px"></i>Trending in Your Department</span>
+    </div>
+    <div class="rec-grid" id="trendingGrid" style="margin-bottom:32px"></div>
+
+    <!-- Because You Read -->
+    <div class="section-header" style="margin-bottom:16px">
+      <span class="section-title"><i class="fas fa-link" style="color:#8B5CF6;margin-right:8px"></i>Because You Read <em>Clean Code</em>...</span>
+    </div>
+    <div class="rec-grid" id="becauseGrid"></div>
+
+  <div class="toast" id="toast"></div>
+
+  <!-- AI Assistant Floating Action Button (FAB) -->
+  <div class="ai-fab-container" id="aiFabContainer">
+    <div class="ai-fab-tooltip">
+      <i class="fas fa-sparkles" style="color:#F59E0B"></i> Ask AI about your books
+    </div>
+    <button class="ai-fab-btn" id="aiFabBtn" title="Library AI Assistant">
+      <i class="fas fa-robot"></i>
+      <div class="ai-fab-badge" id="aiFabBadge"></div>
+    </button>
+  </div>
+
+  <script src="js/mock-data.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/ai-assistant.js"></script>
+  <script>
+    Auth.requireAuth();
+
+    function bookCard(b) {
+      return `
+        <div class="rec-full-card">
+          <img src="${b.cover}" alt="${b.title}" loading="lazy" onerror="this.src='assets/images/covers/clean-code.svg'" />
+          <div class="rec-full-card-body">
+            ${b.match ? `<div class="match-score"><i class="fas fa-brain"></i> ${b.match}% match</div>` : ''}
+            <div style="font-size:14px;font-weight:600;margin-bottom:3px">${b.title}</div>
+            <div style="font-size:12px;color:#64748B;margin-bottom:8px">${b.author}</div>
+            <span class="badge badge-info" style="margin-bottom:10px">${b.genre}</span><br/>
+            <button class="btn btn-primary btn-sm" style="width:100%;margin-top:6px" onclick="borrowBook('${b.id || ''}','${b.title.replace(/'/g, "\\'")}')">
+              <i class="fas fa-plus"></i> Borrow
+            </button>
+          </div>
+        </div>`;
+    }
+
+    async function loadRecommendations() {
+      const user = Auth.getUser();
+      let recList = [...MOCK.recommendations];
+      let trendList = [
+        { title: 'The Lean Startup', author: 'Eric Ries', genre: 'Technology', cover: 'assets/images/covers/clean-code.svg' },
+        { title: 'Zero to One', author: 'Peter Thiel', genre: 'Technology', cover: 'assets/images/covers/atomic-habits.svg' },
+        { title: 'Thinking in Systems', author: 'Donella Meadows', genre: 'Science', cover: 'assets/images/covers/sapiens.svg' },
+      ];
+      let becauseList = [
+        { title: 'The Pragmatic Programmer', author: 'Andrew Hunt', genre: 'Technology', cover: 'assets/images/covers/deep-work.svg' },
+        { title: 'Refactoring', author: 'Martin Fowler', genre: 'Technology', cover: 'assets/images/covers/clean-code.svg' },
+        { title: 'Code Complete', author: 'Steve McConnell', genre: 'Technology', cover: 'assets/images/covers/the-alchemist.svg' },
+      ];
+
+      if (user && user.user_id) {
+        const rRes = await api.getRecommendations(user.user_id);
+        if (rRes && rRes.success && rRes.data && rRes.data.recommendations.length > 0) {
+          recList = rRes.data.recommendations.map(r => ({
+            id: r.book_id,
+            title: r.title,
+            author: r.author,
+            genre: r.genre,
+            match: r.match_percentage || 88,
+            cover: r.cover_image_url || 'assets/images/covers/clean-code.svg'
+          }));
+        }
+
+        const tRes = await api.getTrending();
+        if (tRes && tRes.success && tRes.data && tRes.data.trending.length > 0) {
+          trendList = tRes.data.trending.map(t => ({
+            id: t.book_id,
+            title: t.title,
+            author: t.author,
+            genre: t.genre,
+            cover: t.cover_image_url || 'assets/images/covers/clean-code.svg'
+          }));
+        }
+
+        const sRes = await api.getSimilar(1);
+        if (sRes && sRes.success && sRes.data && sRes.data.similar_books.length > 0) {
+          becauseList = sRes.data.similar_books.map(sb => ({
+            id: sb.book_id,
+            title: sb.title,
+            author: sb.author,
+            genre: sb.genre,
+            cover: sb.cover_image_url || 'assets/images/covers/clean-code.svg'
+          }));
+        }
+      }
+
+      document.getElementById('recGrid').innerHTML = recList.map(bookCard).join('');
+      document.getElementById('trendingGrid').innerHTML = trendList.map(bookCard).join('');
+      document.getElementById('becauseGrid').innerHTML = becauseList.map(bookCard).join('');
+    }
+
+    async function borrowBook(id, title) {
+      const user = Auth.getUser();
+      if (user && user.user_id && id && !isNaN(id)) {
+        const res = await api.issueBook(user.user_id, parseInt(id));
+        if (res && res.success) {
+          showToast(`"${title}" issued successfully to your account!`);
+          return;
+        }
+      }
+      showToast(`Borrow request sent for "${title}"!`);
+    }
+
+    loadRecommendations();
+  </script>
+</body>
+</html>
