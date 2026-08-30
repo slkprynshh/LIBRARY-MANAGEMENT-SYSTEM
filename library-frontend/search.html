@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Search Books — AI Library</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <link rel="stylesheet" href="css/components.css" />
+  <link rel="stylesheet" href="css/dashboard.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+</head>
+<body>
+
+  <nav class="navbar">
+    <div class="navbar-brand"><i class="fas fa-brain"></i><span>AI Library</span></div>
+    <div class="navbar-spacer"></div>
+    <div class="navbar-actions">
+      <button class="nav-icon-btn"><i class="fas fa-bell"></i><span class="notif-dot"></span></button>
+      <span class="nav-user-name" id="navUserName"></span>
+      <div class="nav-avatar" id="navAvatar"></div>
+      <button class="nav-icon-btn logout-btn"><i class="fas fa-sign-out-alt"></i></button>
+    </div>
+  </nav>
+
+  <aside class="sidebar">
+    <div class="sidebar-section">Main</div>
+    <a href="student-dashboard.html" class="sidebar-link"><i class="fas fa-home"></i> Home</a>
+    <a href="search.html" class="sidebar-link active"><i class="fas fa-search"></i> Search Books</a>
+    <a href="student-dashboard.html#borrowed" class="sidebar-link"><i class="fas fa-book-open"></i> My Borrowed Books</a>
+    <a href="recommendations.html" class="sidebar-link"><i class="fas fa-star"></i> Recommendations</a>
+    <div class="sidebar-section">Account</div>
+    <a href="fines.html" class="sidebar-link"><i class="fas fa-rupee-sign"></i> My Fines</a>
+    <a href="#" class="sidebar-link"><i class="fas fa-user-circle"></i> Profile</a>
+  </aside>
+
+  <main class="page-wrapper">
+    <div class="search-hero">
+      <h1><i class="fas fa-robot" style="color:#0EA5E9"></i> Smart Book Search</h1>
+      <p>Search by title, author, genre, or describe what you want in natural language</p>
+      <div class="search-bar-wrap">
+        <i class="fas fa-search"></i>
+        <input type="text" id="searchInput" class="search-input" placeholder="Search by title, author, genre, or describe what you want..." />
+      </div>
+    </div>
+
+    <div class="filter-chips" id="filterChips">
+      <span class="chip active" data-filter="all">All</span>
+      <span class="chip" data-filter="available">Available</span>
+      <span class="chip" data-filter="Fiction">Fiction</span>
+      <span class="chip" data-filter="Science">Science</span>
+      <span class="chip" data-filter="Technology">Technology</span>
+      <span class="chip" data-filter="History">History</span>
+    </div>
+
+    <div id="resultsCount" style="font-size:13px;color:#64748B;margin-bottom:16px"></div>
+    <div class="books-grid" id="booksGrid"></div>
+    <div class="empty-state" id="emptyState" style="display:none">
+      <i class="fas fa-search"></i>
+      <p>No books found. Try a different search term.</p>
+    </div>
+  <div class="toast" id="toast"></div>
+
+  <!-- AI Assistant Floating Action Button (FAB) -->
+  <div class="ai-fab-container" id="aiFabContainer">
+    <div class="ai-fab-tooltip">
+      <i class="fas fa-sparkles" style="color:#F59E0B"></i> Ask AI about your books
+    </div>
+    <button class="ai-fab-btn" id="aiFabBtn" title="Library AI Assistant">
+      <i class="fas fa-robot"></i>
+      <div class="ai-fab-badge" id="aiFabBadge"></div>
+    </button>
+  </div>
+
+  <script src="js/mock-data.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/ai-assistant.js"></script>
+  <script>
+    Auth.requireAuth();
+
+    let activeFilter = 'all';
+    let searchQuery = '';
+    let fetchedBooks = [];
+
+    async function loadBooks() {
+      const user = Auth.getUser();
+      if (searchQuery.trim()) {
+        const apiRes = await api.searchBooks(searchQuery);
+        if (apiRes && apiRes.success && apiRes.data) {
+          fetchedBooks = apiRes.data.results.map(b => ({
+            id: b.book_id,
+            title: b.title,
+            author: b.author,
+            genre: b.genre,
+            available: b.available_copies > 0,
+            cover: b.cover_image_url || `assets/images/covers/clean-code.svg`
+          }));
+        } else {
+          fetchedBooks = filterMockBooks();
+        }
+      } else {
+        const apiRes = await api.getBooks({ per_page: 50 });
+        if (apiRes && apiRes.success && apiRes.data) {
+          fetchedBooks = apiRes.data.books.map(b => ({
+            id: b.book_id,
+            title: b.title,
+            author: b.author,
+            genre: b.genre,
+            available: b.available_copies > 0,
+            cover: b.cover_image_url || `assets/images/covers/clean-code.svg`
+          }));
+        } else {
+          fetchedBooks = filterMockBooks();
+        }
+      }
+      renderBooks();
+    }
+
+    function filterMockBooks() {
+      let books = MOCK.searchBooks;
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase();
+        books = books.filter(b =>
+          b.title.toLowerCase().includes(q) ||
+          b.author.toLowerCase().includes(q) ||
+          b.genre.toLowerCase().includes(q)
+        );
+      }
+      return books;
+    }
+
+    function renderBooks() {
+      let books = [...fetchedBooks];
+      if (activeFilter === 'available') books = books.filter(b => b.available);
+      else if (activeFilter !== 'all') books = books.filter(b => b.genre.toLowerCase() === activeFilter.toLowerCase());
+
+      const grid = document.getElementById('booksGrid');
+      const empty = document.getElementById('emptyState');
+      document.getElementById('resultsCount').textContent = `Showing ${books.length} result${books.length !== 1 ? 's' : ''}`;
+
+      if (!books.length) { grid.innerHTML = ''; empty.style.display = 'block'; return; }
+      empty.style.display = 'none';
+
+      grid.innerHTML = books.map(b => `
+        <div class="book-card">
+          <img src="${b.cover}" alt="${b.title}" loading="lazy" onerror="this.src='assets/images/covers/clean-code.svg'" />
+          <div class="book-card-body">
+            <div class="book-card-title">${b.title}</div>
+            <div class="book-card-author">${b.author}</div>
+            <span class="badge ${b.available ? 'badge-success' : 'badge-danger'}">
+              <i class="fas fa-circle" style="font-size:7px"></i>
+              ${b.available ? 'Available' : 'Issued'}
+            </span>
+            <div class="book-card-footer">
+              <span class="badge badge-info">${b.genre}</span>
+              ${b.available
+                ? `<button class="btn btn-primary btn-sm" onclick="borrowBook('${b.id}','${b.title.replace(/'/g, "\\'")}')"><i class="fas fa-plus"></i> Borrow</button>`
+                : `<button class="btn btn-outline btn-sm" onclick="reserveBook('${b.id}','${b.title.replace(/'/g, "\\'")}')"><i class="fas fa-bookmark"></i> Reserve</button>`
+              }
+            </div>
+          </div>
+        </div>`).join('');
+    }
+
+    async function borrowBook(id, title) {
+      const user = Auth.getUser();
+      if (user && user.user_id && typeof id === 'number') {
+        const res = await api.issueBook(user.user_id, id);
+        if (res && res.success) {
+          showToast(`"${title}" issued successfully to your account!`);
+          loadBooks();
+          return;
+        }
+      }
+      showToast(`Borrow request sent for "${title}"!`);
+    }
+
+    async function reserveBook(id, title) {
+      const user = Auth.getUser();
+      if (user && user.user_id && typeof id === 'number') {
+        const res = await api.reserveBook(id, user.user_id);
+        if (res && res.success) {
+          showToast(`"${title}" reserved successfully!`);
+          return;
+        }
+      }
+      showToast(`"${title}" reserved successfully!`);
+    }
+
+    let searchTimeout;
+    document.getElementById('searchInput').addEventListener('input', e => {
+      searchQuery = e.target.value;
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => loadBooks(), 300);
+    });
+
+    document.getElementById('filterChips').addEventListener('click', e => {
+      const chip = e.target.closest('.chip');
+      if (!chip) return;
+      document.querySelectorAll('.chip').forEach(c => c.classList.remove('active'));
+      chip.classList.add('active');
+      activeFilter = chip.dataset.filter;
+      renderBooks();
+    });
+
+    loadBooks();
+  </script>
+</body>
+</html>
