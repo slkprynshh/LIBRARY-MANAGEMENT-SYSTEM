@@ -1,0 +1,12 @@
+Flask
+flask-cors
+flask-sqlalchemy
+PyMySQL
+PyJWT
+bcrypt
+python-dotenv
+scikit-learn
+pandas
+numpy
+nltk
+scipy
